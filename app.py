@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import joblib
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import plotly.express as px
 from xgboost import XGBRegressor, DMatrix
@@ -120,10 +121,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{ border-color:{BORDER} !import
     border-radius:12px; padding:.8rem 1rem; font-size:.9rem;
 }}
 
-/* السلايدر دايمًا يسار -> يمين حتى لو المتصفح RTL (علشان الدايرة والخط يمشوا مع بعض) */
-[data-testid="stSlider"], [data-testid="stSlider"] * {{ direction: ltr !important; }}
-[data-testid="stSlider"] [data-testid="stWidgetLabel"] {{ direction: ltr !important; }}
-
 /* Widgets */
 div[data-testid="stMetric"] {{ background:{CARD}; border:1px solid {BORDER}; padding:1rem 1.2rem; border-radius:16px; }}
 .stDataFrame {{ border-radius:12px; overflow:hidden; }}
@@ -134,6 +131,25 @@ hr {{ border-color:{BORDER}; }}
 </style>
 """,
     unsafe_allow_html=True,
+)
+
+
+# Streamlit بيعكس السلايدر لما لغة المتصفح تكون عربي (الدايرة والخط بيمشوا عكس بعض).
+# الحل: نخلي المتصفح يبلّغ إن اللغة إنجليزي للمكوّنات بس.
+components.html(
+    """<script>
+    (function () {
+      try {
+        var w = window.parent, nav = w.navigator;
+        if (!/^en/i.test(nav.language || "")) {
+          Object.defineProperty(nav, "language", { get: function () { return "en-US"; }, configurable: true });
+          Object.defineProperty(nav, "languages", { get: function () { return ["en-US"]; }, configurable: true });
+          w.dispatchEvent(new w.Event("languagechange"));
+        }
+      } catch (e) {}
+    })();
+    </script>""",
+    height=0,
 )
 
 
