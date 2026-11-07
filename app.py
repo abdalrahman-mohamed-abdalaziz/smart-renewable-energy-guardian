@@ -120,6 +120,10 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{ border-color:{BORDER} !import
     border-radius:12px; padding:.8rem 1rem; font-size:.9rem;
 }}
 
+/* السلايدر دايمًا يسار -> يمين حتى لو المتصفح RTL (علشان الدايرة والخط يمشوا مع بعض) */
+[data-testid="stSlider"], [data-testid="stSlider"] * {{ direction: ltr !important; }}
+[data-testid="stSlider"] [data-testid="stWidgetLabel"] {{ direction: ltr !important; }}
+
 /* Widgets */
 div[data-testid="stMetric"] {{ background:{CARD}; border:1px solid {BORDER}; padding:1rem 1.2rem; border-radius:16px; }}
 .stDataFrame {{ border-radius:12px; overflow:hidden; }}
