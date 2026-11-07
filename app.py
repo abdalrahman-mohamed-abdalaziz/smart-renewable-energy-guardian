@@ -86,6 +86,7 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label [data-baseweb="rad
 }}
 .hero h1 {{ margin:0; font-size:2rem; font-weight:800; letter-spacing:-.02em; }}
 .hero h1 span {{ background:linear-gradient(90deg,{AMBER},{ORANGE}); -webkit-background-clip:text; color:transparent; }}
+.hero p, .page-sub, .note, .pill {{ unicode-bidi:plaintext; text-align:left; }}
 .hero p {{ margin:.4rem 0 0; color:#B8C0DA; font-size:.98rem; max-width:720px; }}
 .page-title {{ font-size:1.9rem; line-height:1.2; font-weight:800; letter-spacing:-.02em; margin:0; }}
 .page-sub {{ color:{MUTED}; margin:.2rem 0 1.2rem; }}
@@ -103,15 +104,10 @@ section[data-testid="stSidebar"] div[role="radiogroup"] label [data-baseweb="rad
 .kpi .value {{ font-size:1.9rem; font-weight:800; margin:.25rem 0 .1rem; letter-spacing:-.02em; }}
 .kpi .value small {{ font-size:.9rem; color:{MUTED}; font-weight:600; margin-left:.25rem; }}
 .kpi .hint {{ color:{MUTED}; font-size:.78rem; }}
-.kpi .delta-up {{ color:{GREEN}; font-weight:700; }}
-.kpi .delta-down {{ color:{RED}; font-weight:700; }}
 
 /* Panels */
 .panel-title {{ font-weight:700; font-size:1.02rem; margin:.2rem 0 .1rem; }}
 .panel-sub {{ color:{MUTED}; font-size:.82rem; margin-bottom:.4rem; }}
-div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stVerticalBlock"] > .element-container .panel-title) {{
-    background:{CARD}; border-radius:16px;
-}}
 div[data-testid="stVerticalBlockBorderWrapper"] {{ border-color:{BORDER} !important; border-radius:16px !important; background:{CARD}; }}
 
 /* Status pill */
@@ -140,18 +136,13 @@ hr {{ border-color:{BORDER}; }}
 # =====================================================
 # Helpers
 # =====================================================
-def kpi(label, value, unit="", hint="", accent=AMBER, delta=None):
-    d = ""
-    if delta is not None:
-        cls = "delta-up" if delta >= 0 else "delta-down"
-        arrow = "▲" if delta >= 0 else "▼"
-        d = f'<span class="{cls}">{arrow} {abs(delta):,.0f} Wh</span> · '
+def kpi(label, value, unit="", hint="", accent=AMBER):
     unit_html = f"<small>{unit}</small>" if unit else ""
     st.markdown(
         f"""<div class="kpi" style="--accent:{accent}">
         <div class="label">{label}</div>
         <div class="value">{value}{unit_html}</div>
-        <div class="hint">{d}{hint}</div></div>""",
+        <div class="hint">{hint}</div></div>""",
         unsafe_allow_html=True,
     )
 
@@ -224,8 +215,12 @@ def load_monitor():
     return pd.read_csv("monitoring_results.csv", parse_dates=["Time"])
 
 
-model, columns, extra = load_assets()
-monitor = load_monitor()
+try:
+    model, columns, extra = load_assets()
+    monitor = load_monitor()
+except FileNotFoundError as e:
+    st.error(f"ملف ناقص: {e.filename}. شغّل التطبيق من نفس فولدر المشروع (streamlit run app.py).")
+    st.stop()
 ghi_max = extra["ghi_max"]
 ghi_q75 = extra["ghi_q75"]
 defaults = extra["defaults"]
@@ -243,12 +238,14 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown('<div class="side-label">Navigation</div>', unsafe_allow_html=True)
-    page = st.radio(
-        "Pages",
-        ["🏠  Home", "⚡  Energy Prediction", "🚨  Anomaly Detection", "🧪  What-if Simulation", "🧠  Model Insights"],
-        label_visibility="collapsed",
-    )
-    page = page.split("  ", 1)[1]
+    NAV = {
+        "🏠  Home": "Home",
+        "⚡  Energy Prediction": "Energy Prediction",
+        "🚨  Anomaly Detection": "Anomaly Detection",
+        "🧪  What-if Simulation": "What-if Simulation",
+        "🧠  Model Insights": "Model Insights",
+    }
+    page = NAV[st.radio("Pages", list(NAV), label_visibility="collapsed")]
 
     st.markdown('<div class="side-label">Weather conditions</div>', unsafe_allow_html=True)
     ghi = st.slider("☀️ GHI (solar radiation)", 0, 230, 100)
@@ -271,11 +268,8 @@ with st.sidebar:
 # =====================================================
 # بناء صف الإدخال للموديل
 # =====================================================
-def build_row(g, t, c, hum=None, hr=None, mo=None, w=None):
-    hum = humidity if hum is None else hum
-    hr = hour if hr is None else hr
-    mo = month if mo is None else mo
-    w = wind if w is None else w
+def build_row(g, t, c):
+    hum, hr, mo, w = humidity, hour, month, wind
     r = dict(defaults)
     r["GHI"] = g
     r["temp"] = t
@@ -336,7 +330,7 @@ if page == "Home":
     with c2:
         kpi("Anomalies", f"{len(anomalies):,}", hint="Flagged by deviation rule", accent=AMBER)
     with c3:
-        kpi("Anomaly rate", f"{len(anomalies) / len(monitor) * 100:.2f}", "%", hint="Share of all hours", accent=ORANGE)
+        kpi("Anomaly rate", f"{len(anomalies) / max(len(monitor), 1) * 100:.2f}", "%", hint="Share of all hours", accent=ORANGE)
     with c4:
         kpi("Underperformance", f"{len(under):,}", hint=f"{len(over):,} overperformance", accent=RED)
 
@@ -483,7 +477,7 @@ elif page == "Anomaly Detection":
                 "Time": st.column_config.DatetimeColumn("Time", format="YYYY-MM-DD HH:mm"),
                 "actual": st.column_config.NumberColumn("Actual (Wh)", format="%.0f"),
                 "predicted": st.column_config.NumberColumn("Predicted (Wh)", format="%.0f"),
-                "deviation_pct": st.column_config.ProgressColumn("Deviation %", format="%.1f%%", min_value=-100, max_value=0),
+                "deviation_pct": st.column_config.NumberColumn("Deviation %", format="%.1f%%"),
             },
         )
 
@@ -493,6 +487,9 @@ elif page == "Anomaly Detection":
 elif page == "What-if Simulation":
     header("🧪 What-if Simulation", "غيّر الظروف الجديدة من القائمة الجانبية وقارن التأثير على التوقع.")
 
+    if pred_base == 0:
+        st.markdown('<span class="pill warn">🌙 Night hour (before 06:00 / after 18:00) — expected production is 0, so the simulation is flat.</span>', unsafe_allow_html=True)
+        st.write("")
     diff = pred_new - pred_base
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -505,7 +502,6 @@ elif page == "What-if Simulation":
 
     st.write("")
     gv = np.arange(0, 231, 10)
-    base_dict = build_row(ghi, temp, clouds)
     df_g = pd.DataFrame([build_row(int(g), temp, clouds) for g in gv])
     preds_ghi = predict_many(df_g) if pred_base > 0 else np.zeros(len(gv))
     cv = np.arange(0, 101, 10)
