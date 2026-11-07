@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import joblib
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import plotly.express as px
 from xgboost import XGBRegressor, DMatrix
@@ -130,6 +131,25 @@ hr {{ border-color:{BORDER}; }}
 </style>
 """,
     unsafe_allow_html=True,
+)
+
+
+# Streamlit بيعكس السلايدر لما لغة المتصفح تكون عربي (الدايرة والخط بيمشوا عكس بعض).
+# الحل: نخلي المتصفح يبلّغ إن اللغة إنجليزي للمكوّنات بس.
+components.html(
+    """<script>
+    (function () {
+      try {
+        var w = window.parent, nav = w.navigator;
+        if (!/^en/i.test(nav.language || "")) {
+          Object.defineProperty(nav, "language", { get: function () { return "en-US"; }, configurable: true });
+          Object.defineProperty(nav, "languages", { get: function () { return ["en-US"]; }, configurable: true });
+          w.dispatchEvent(new w.Event("languagechange"));
+        }
+      } catch (e) {}
+    })();
+    </script>""",
+    height=0,
 )
 
 
